@@ -271,9 +271,9 @@ JAVA_OPTS="$JAVA_OPTS -Djava.protocol.handler.pkgs=org.apache.catalina.webresour
 # Check for the deprecated LOGGING_CONFIG
 # Only use it if CATALINA_LOGGING_CONFIG is not set and LOGGING_CONFIG starts with "-D..."
 if [ -z "$CATALINA_LOGGING_CONFIG" ]; then
-  if [ "${LOGGING_CONFIG#*-D}" != "$LOGGING_CONFIG" ]; then
-    CATALINA_LOGGING_CONFIG="$LOGGING_CONFIG"
-  fi
+  case $LOGGING_CONFIG in
+    -D*) CATALINA_LOGGING_CONFIG="$LOGGING_CONFIG"
+  esac
 fi
 
 # Set juli LogManager config file if it is present and an override has not been issued
@@ -326,6 +326,8 @@ fi
 # Add the JAVA 9 specific start-up parameters required by Tomcat
 JDK_JAVA_OPTIONS="$JDK_JAVA_OPTIONS --add-opens=java.base/java.lang=ALL-UNNAMED"
 JDK_JAVA_OPTIONS="$JDK_JAVA_OPTIONS --add-opens=java.base/java.io=ALL-UNNAMED"
+JDK_JAVA_OPTIONS="$JDK_JAVA_OPTIONS --add-opens=java.base/java.util=ALL-UNNAMED"
+JDK_JAVA_OPTIONS="$JDK_JAVA_OPTIONS --add-opens=java.base/java.util.concurrent=ALL-UNNAMED"
 JDK_JAVA_OPTIONS="$JDK_JAVA_OPTIONS --add-opens=java.rmi/sun.rmi.transport=ALL-UNNAMED"
 export JDK_JAVA_OPTIONS
 
@@ -342,6 +344,7 @@ if [ $have_tty -eq 1 ]; then
     echo "Using JRE_HOME:        $JRE_HOME"
   fi
   echo "Using CLASSPATH:       $CLASSPATH"
+  echo "Using CATALINA_OPTS:   $CATALINA_OPTS"
   if [ ! -z "$CATALINA_PID" ]; then
     echo "Using CATALINA_PID:    $CATALINA_PID"
   fi
@@ -364,10 +367,6 @@ if [ "$1" = "jpda" ] ; then
   shift
 fi
 
-# TODO: Bugzilla 63815
-# This doesn't currently work (and can't be made to work) if values used in
-# CATALINA_OPTS and/or JAVA_OPTS require quoting. See:
-# https://bugs.openjdk.java.net/browse/JDK-8234808
 if [ "$1" = "debug" ] ; then
   if $os400; then
     echo "Debug command not available on OS400"
@@ -379,7 +378,7 @@ if [ "$1" = "debug" ] ; then
         echo "Using Security Manager"
       fi
       shift
-      exec "$_RUNJDB" "$CATALINA_LOGGING_CONFIG" $LOGGING_MANAGER $JAVA_OPTS $CATALINA_OPTS \
+      eval exec "\"$_RUNJDB\"" "\"$CATALINA_LOGGING_CONFIG\"" $LOGGING_MANAGER "$JAVA_OPTS" "$CATALINA_OPTS" \
         -D$ENDORSED_PROP="$JAVA_ENDORSED_DIRS" \
         -classpath "$CLASSPATH" \
         -sourcepath "$CATALINA_HOME"/../../java \
@@ -390,7 +389,7 @@ if [ "$1" = "debug" ] ; then
         -Djava.io.tmpdir="$CATALINA_TMPDIR" \
         org.apache.catalina.startup.Bootstrap "$@" start
     else
-      exec "$_RUNJDB" "$CATALINA_LOGGING_CONFIG" $LOGGING_MANAGER $JAVA_OPTS $CATALINA_OPTS \
+      eval exec "\"$_RUNJDB\"" "\"$CATALINA_LOGGING_CONFIG\"" $LOGGING_MANAGER "$JAVA_OPTS" "$CATALINA_OPTS" \
         -D$ENDORSED_PROP="$JAVA_ENDORSED_DIRS" \
         -classpath "$CLASSPATH" \
         -sourcepath "$CATALINA_HOME"/../../java \
